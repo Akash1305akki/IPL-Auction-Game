@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IPL Auction Dashboard</title>
+
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        color: #e0ffe0;
+
+        /* fallback color for left/right gaps */
+        background-color: #271869;
+
+        /* allow ::before background layer */
+        position: relative;
+        overflow-x: hidden;
+
+        /* default background image */
+        --curr-bg: url("/static/images/arena.jpeg");
+      }
+
+      /* Blurred Full-Page Background Layer */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+
+        background-image: var(--curr-bg);
+        background-size: var(--bg-size, contain);
+        background-position: var(--bg-position, top center);
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+
+        filter: blur(4px) brightness(0.95);
+        opacity: 0.9;
+      }
+
+      .tabs {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+
+      .tab {
+        padding: 10px 15px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid white;
+        border-radius: 5px;
+        cursor: pointer;
+        color: white;
+        transition: 0.2s;
+        display: inline-block;
+      }
+
+      .tab.active {
+        background: white;
+        color: black;
+        border: 1px solid white;
+      }
+
+      .content-section {
+        display: none;
+      }
+      .content-section.active {
+        display: block;
+      }
+
+      .team-cards {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 15px;
+        margin-bottom: 30px;
+      }
+
+      .card {
+        background: rgba(0, 0, 0, 0.2);
+        padding: 15px;
+        border-radius: 8px;
+        border: 1px solid white;
+        color: white;
+        min-height: 180px;
+      }
+
+      form {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 20px;
+        border-radius: 8px;
+        border: 1px solid white; /* WHITE BORDER */
+        margin-top: 30px;
+      }
+
+      .form-row {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 15px;
+      }
+
+      input,
+      select {
+        width: 100%;
+        padding: 10px;
+        border-radius: 6px;
+        background: rgba(0, 0, 0, 0.2); /* light transparent bg */
+        border: 1px solid white; /* white border */
+        color: white !important; /* clean text */
+      }
+
+      ::placeholder {
+        color: white;
+      }
+
+      /* Dropdown Options – Semi Transparent */
+      select option {
+        background: rgba(171, 161, 161, 0.14) !important; /* dark glass */
+        color: black !important; /* text color */
+      }
+
+      button:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+      }
+
+      .btn-sold {
+        background: rgb(0, 245, 114);
+        color: #000;
+        font-weight: bold;
+        border-radius: 6px;
+        padding: 10px;
+        cursor: pointer;
+        border: none;
+      }
+
+      .btn-unsold {
+        background: #ff4444;
+        color: #fff;
+        font-weight: bold;
+        border-radius: 6px;
+        padding: 10px;
+        cursor: pointer;
+        border: none;
+      }
+
+      /* Table Styling */
+      /* TABLE CLEAN WHITE THEME */
+      table {
+        border-collapse: collapse;
+        width: 65%;
+        min-width: 600px;
+        background: rgba(0, 0, 0, 0.3); /* slight dark glass background */
+        backdrop-filter: blur(6px);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+
+      th,
+      td {
+        padding: 10px 12px;
+        text-align: left;
+        border: 2px solid rgba(255, 255, 255, 0.6); /* white, less harsh */
+        color: white;
+        font-size: 16px;
+      }
+
+      th {
+        background: rgba(255, 255, 255, 0.37); /* soft glass effect */
+        font-weight: bold;
+        color: black;
+      }
+
+      tr:hover td {
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .remove-btn {
+        background: #ff4444;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        padding: 2px 8px;
+        cursor: pointer;
+        font-weight: bold;
+      }
+
+      /* Modal */
+      /* FULL SCREEN OVERLAY */
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.75);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 999;
+      }
+
+      /* GLASS MODAL BOX */
+      .modal {
+        background: rgba(20, 20, 20, 0.75);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.6);
+        border-radius: 12px;
+        padding: 25px;
+        min-width: 350px;
+        color: white;
+        box-shadow: 0 0 25px rgba(0, 0, 0, 0.4);
+      }
+
+      /* TITLE */
+      .modal h2 {
+        margin-top: 0;
+        margin-bottom: 12px;
+        font-size: 22px;
+        font-weight: bold;
+        color: white;
+      }
+
+      /* TEXT LABELS */
+      .modal label {
+        font-size: 15px;
+        margin-bottom: 5px;
+        display: block;
+        color: white;
+      }
+
+      /* INPUT FIELD */
+      .modal input {
+        width: 100%;
+        padding: 10px;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.6);
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        font-size: 15px;
+      }
+
+      /* ACTION BUTTONS WRAPPER */
+      .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        margin-top: 18px;
+      }
+
+      /* BASE BUTTON STYLE */
+      .modal-btn {
+        padding: 8px 18px;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 15px;
+      }
+
+      /* CANCEL BUTTON — GREY */
+      .modal-cancel {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+      }
+
+      /* SUBMIT BUTTON — WHITE (matching selected tab theme) */
+      .modal-submit {
+        background: white;
+        color: black;
+      }
+
+      .modal-submit:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- Tabs -->
+    <div class="tabs">
+      <div class="tab active" onclick="showTab(event,'arena')">
+        Teams & Update Arena
+      </div>
+      <div class="tab" onclick="showTab(event,'Unsold')">Unsold</div>
+      <div class="tab" onclick="showTab(event,'CSK')">CSK</div>
+      <div class="tab" onclick="showTab(event,'MI')">MI</div>
+      <div class="tab" onclick="showTab(event,'RCB')">RCB</div>
+      <div class="tab" onclick="showTab(event,'KKR')">KKR</div>
+      <div class="tab" onclick="showTab(event,'RR')">RR</div>
+      <div class="tab" onclick="showTab(event,'SRH')">SRH</div>
+      <div class="tab" onclick="showTab(event,'DC')">DC</div>
+      <div class="tab" onclick="showTab(event,'PBKS')">PBKS</div>
+      <div class="tab" onclick="showTab(event,'LSG')">LSG</div>
+      <div class="tab" onclick="showTab(event,'GT')">GT</div>
+    </div>
+
+    <!-- Arena Section -->
+    <div id="arena" class="content-section active">
+      <h1>Teams and Update Arena</h1>
+
+      <div class="team-cards" id="teamCards"></div>
+
+      <!-- FORM -->
+      <form id="player-form">
+        <div class="form-row">
+          <input id="f-name" type="text" placeholder="Player Name" />
+          <select id="f-team">
+            <option value="" disabled selected>Team Bought</option>
+            <option>CSK</option>
+            <option>MI</option>
+            <option>RCB</option>
+            <option>KKR</option>
+            <option>RR</option>
+            <option>SRH</option>
+            <option>DC</option>
+            <option>PBKS</option>
+            <option>LSG</option>
+            <option>GT</option>
+          </select>
+
+          <input
+            id="f-price"
+            type="number"
+            placeholder="Sold For (Crores)"
+            step="0.01"
+          />
+        </div>
+
+        <div class="form-row">
+          <select id="f-speciality">
+            <option value="" disabled selected>Speciality</option>
+            <option>Batsman</option>
+            <option>Bowler</option>
+            <option>All-rounder</option>
+            <option>Wicket Keeper</option>
+          </select>
+
+          <select id="f-nationality">
+            <option value="" disabled selected>Nationality</option>
+            <option>Indian</option>
+            <option>Overseas</option>
+          </select>
+        </div>
+
+        <div class="form-row">
+          <button type="button" class="btn-sold" id="btnSold">Sold</button>
+          <button type="button" class="btn-unsold" id="btnUnsold">
+            Unsold
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- All Tabs With Headers + Containers -->
+    <div id="Unsold" class="content-section">
+      <h1>Unsold Players</h1>
+      <div class="sheet-container"></div>
+    </div>
+
+    <div id="CSK" class="content-section">
+      <h1>CSK Squad</h1>
+      <div class="sheet-container"></div>
+    </div>
+    <div id="MI" class="content-section">
+      <h1>MI Squad</h1>
+      <div class="sheet-container"></div>
+    </div>
+    <div id="RCB" class="content-section">
+      <h1>RCB Squad</h1>
+      <div class="sheet-container"></div>
+    </div>
+    <div id="KKR" class="content-section">
+      <h1>KKR Squad</h1>
+      <div class="sheet-container"></div>
+    </div>
+    <div id="RR" class="content-section">
+      <h1>RR Squad</h1>
+      <div class="sheet-container"></div>
+    </div>
+    <div id="SRH" class="content-section">
+      <h1>SRH Squad</h1>
+      <div class="sheet-container"></div>
+    </div>
+    <div id="DC" class="content-section">
+      <h1>DC Squad</h1>
+      <div class="sheet-container"></div>
+    </div>
+    <div id="PBKS" class="content-section">
+      <h1>PBKS Squad</h1>
+      <div class="sheet-container"></div>
+    </div>
+    <div id="LSG" class="content-section">
+      <h1>LSG Squad</h1>
+      <div class="sheet-container"></div>
+    </div>
+    <div id="GT" class="content-section">
+      <h1>GT Squad</h1>
+      <div class="sheet-container"></div>
+    </div>
+
+    <!-- Remove Player Modal -->
+    <div id="removeModal" class="modal-overlay">
+      <div class="modal">
+        <h2>Remove Player</h2>
+        <p id="removeModalPlayerText"></p>
+        <label for="removeBasePrice">Base Price:</label>
+        <input
+          id="removeBasePrice"
+          type="number"
+          min="0"
+          step="0.01"
+          placeholder="Enter base price"
+        />
+        <div class="modal-actions">
+          <button
+            type="button"
+            id="removeCancelBtn"
+            class="modal-btn modal-cancel"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            id="removeSubmitBtn"
+            class="modal-btn modal-submit"
+            disabled
+          >
+            Submit
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+        const teams = {{ teams | tojson }};
+
+        // ---------------- TAB SWITCHING ----------------
+        function showTab(event, id) {
+          updateBackground(id);   // 🔥 Add this line
+
+          // Activate clicked tab
+          document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+          event.target.classList.add("active");
+
+          // Activate section
+          document.querySelectorAll(".content-section").forEach(s => s.classList.remove("active"));
+          document.getElementById(id).classList.add("active");
+
+          // Change background (only one system!)
+          if (id === "arena" || id === "Unsold") {
+            document.body.style.setProperty(
+              "--curr-bg",
+              'url("/static/images/arena.jpeg")'
+            );
+          } else {
+            document.body.style.setProperty(
+              "--curr-bg",
+              `url("/static/images/${id}.jpeg")`
+            );
+          }
+
+          // Load sheet for every non-arena tab
+          if (id !== "arena") loadSheetData(id);
+        }
+
+        // ---------------- LOAD ARENA CARDS ----------------
+        function loadTeamCards() {
+          const c = document.getElementById("teamCards");
+          c.innerHTML = "";
+
+          Object.entries(teams).forEach(([name, val]) => {
+            const card = document.createElement("div");
+            card.className = "card";
+
+            card.innerHTML = `
+              <h3>${name}</h3>
+              <p>Purse Remaining: ${val["Purse Remaining"]} Crores</p>
+              <p>Slots Filled: ${val["Slots Filled"]} Players</p>
+              <p>Indian Slots Remaining: ${val["Indian Slots Remaining"]} Players</p>
+              <p>Overseas Slots Remaining: ${val["Overseas Slots Remaining"]} Players</p>
+            `;
+            c.appendChild(card);
+          });
+        }
+        document.addEventListener("DOMContentLoaded", loadTeamCards);
+
+        // ---------------- FORM VALUES ----------------
+        function getFormValues() {
+          return {
+            name: document.getElementById("f-name").value.trim(),
+            team: document.getElementById("f-team").value,
+            price: document.getElementById("f-price").value,
+            speciality: document.getElementById("f-speciality").value,
+            nationality: document.getElementById("f-nationality").value,
+          };
+        }
+
+        // ---------------- BUTTON ENABLE RULES ----------------
+        function updateBtns() {
+          const { name, team, price, speciality, nationality } = getFormValues();
+
+          document.getElementById("btnUnsold").disabled = !name;
+          document.getElementById("btnSold").disabled = !(
+            name && team && price && speciality && nationality
+          );
+        }
+
+        document.querySelectorAll("#player-form input,#player-form select")
+          .forEach(el => el.addEventListener("input", updateBtns));
+
+        document.addEventListener("DOMContentLoaded", updateBtns);
+
+        // ---------------- ALERT POPUP ----------------
+        function popup(msg) { alert(msg); }
+
+        // ---------------- REMOVE MODAL ----------------
+        let currentRemoveSheet = null;
+        let currentRemovePlayer = null;
+
+        const removeModal = document.getElementById("removeModal");
+        const removePlayerText = document.getElementById("removeModalPlayerText");
+        const removeBasePriceInput = document.getElementById("removeBasePrice");
+        const removeCancelBtn = document.getElementById("removeCancelBtn");
+        const removeSubmitBtn = document.getElementById("removeSubmitBtn");
+
+        function openRemoveModal(sheetName, playerName) {
+          currentRemoveSheet = sheetName;
+          currentRemovePlayer = playerName;
+
+          removePlayerText.textContent = `Player: ${playerName} | Team: ${sheetName}`;
+          removeBasePriceInput.value = "";
+          removeSubmitBtn.disabled = true;
+
+          removeModal.style.display = "flex";
+          removeBasePriceInput.focus();
+        }
+
+        function closeRemoveModal() {
+          removeModal.style.display = "none";
+        }
+
+        removeCancelBtn.addEventListener("click", closeRemoveModal);
+
+        removeBasePriceInput.addEventListener("input", () => {
+          removeSubmitBtn.disabled = removeBasePriceInput.value.trim() === "";
+        });
+
+        removeSubmitBtn.addEventListener("click", async () => {
+          const baseVal = parseFloat(removeBasePriceInput.value);
+          if (isNaN(baseVal)) return;
+
+          await fetch("/remove-player", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              sheet_name: currentRemoveSheet,
+              player_name: currentRemovePlayer,
+              base_price: baseVal,
+            }),
+          });
+
+          closeRemoveModal();
+          popup(`${currentRemovePlayer} moved to Unsold with base price ${baseVal}`);
+
+          loadSheetData(currentRemoveSheet);
+          loadSheetData("Unsold");
+        });
+
+        // ---------------- RENDER TABLE ----------------
+        function renderTable(data, container, sheetName) {
+          container.innerHTML = "";
+
+          if (!data || data.length === 0) {
+            container.innerHTML = "<p>No data available</p>";
+            return;
+          }
+
+          const headers = Object.keys(data[0]);
+          let table = "<table><tr>";
+
+          headers.forEach(h => table += `<th>${h}</th>`);
+
+          const isUnsold = sheetName === "Unsold";
+          if (!isUnsold) table += "<th>Remove Player</th>";
+
+          table += "</tr>";
+
+          data.forEach(row => {
+            table += "<tr>";
+
+            headers.forEach(h => table += `<td>${row[h] ?? ""}</td>`);
+
+            if (!isUnsold) {
+              const p = row["Player Name"];
+              table += `<td><button class="remove-btn" data-sheet="${sheetName}" data-player="${p}">−</button></td>`;
+            }
+
+            table += "</tr>";
+          });
+
+          table += "</table>";
+          container.innerHTML = table;
+
+          if (!isUnsold) {
+            container.querySelectorAll(".remove-btn").forEach(btn =>
+              btn.addEventListener("click", () => {
+                openRemoveModal(
+                  btn.getAttribute("data-sheet"),
+                  btn.getAttribute("data-player")
+                );
+              })
+            );
+          }
+        }
+
+        // ---------------- FETCH SHEET DATA ----------------
+        async function loadSheetData(sheetName) {
+          const container = document.querySelector(`#${sheetName} .sheet-container`);
+          if (!container) return;
+
+          container.innerHTML = "<p style='color:#00ff88;'>Loading...</p>";
+
+          const res = await fetch("/fetch-tab", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sheet_name: sheetName }),
+          });
+
+          const data = await res.json();
+          renderTable(data, container, sheetName);
+        }
+
+        // ---------------- SOLD ----------------
+        document.getElementById("btnSold").addEventListener("click", async () => {
+          const { name, team, price, speciality, nationality } = getFormValues();
+
+          await fetch("/add-player", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "Sold",
+              player_name: name,
+              team,
+              sold_for: Number(price),
+              speciality,
+              nationality,
+            }),
+          });
+
+          popup(`${name} added to ${team} for ${price} Crores`);
+          window.location.href = "/auction-summary-page";
+        });
+
+        // ---------------- UNSOLD ----------------
+        document.getElementById("btnUnsold").addEventListener("click", async () => {
+          const { name, price } = getFormValues();
+
+          await fetch("/add-player", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "Unsold",
+              player_name: name,
+              base_price: price ? Number(price) : 0,
+            }),
+          });
+
+          popup(`${name} was Unsold`);
+          window.location.href = "/auction-summary-page";
+        });
+
+        function updateBackground(tabId) {
+          let imageName = tabId;
+
+          if (tabId === "Unsold") {
+              imageName = "arena";
+          }
+
+          const imgPath = `/static/images/${imageName}.jpeg`;
+
+          // Set the CSS variable for ::before
+          document.body.style.setProperty("--curr-bg", `url('${imgPath}')`);
+
+          // Arena + Unsold → show full image without cropping
+          if (tabId === "arena" || tabId === "Unsold") {
+              document.body.style.setProperty("--bg-size", "contain");
+              document.body.style.setProperty("--bg-position", "top center");
+          }
+          // Teams → cover full background
+          else {
+              document.body.style.setProperty("--bg-size", "cover");
+              document.body.style.setProperty("--bg-position", "center center");
+          }
+      }
+    </script>
+  </body>
+</html>
